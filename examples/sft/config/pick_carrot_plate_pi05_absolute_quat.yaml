@@ -1,0 +1,90 @@
+defaults:
+  - model/pi0_5_carrot_plate_absolute_quat@actor.model
+  - hybrid_engines/fsdp@actor.fsdp_config
+  - override hydra/job_logging: stdout
+  - _self_
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  searchpath:
+    - file://${oc.env:EMBODIED_PATH}/config/
+
+cluster:
+  num_nodes: 1
+  component_placement:
+    # RLinf hardware ranks are physical GPU ordinals on this bare-metal host.
+    actor,env,rollout: 1-2
+
+runner:
+  task_type: sft
+  logger:
+    log_path: /data0/zhibo/storage/experiments/rlinf_pi05_pick_carrot_plate_absquat_20eps_20260830/runs
+    project_name: rlinf-pick-carrot-plate
+    experiment_name: "pi05_absquat_h32_fsdp2_gpu1_2_5epochs"
+    logger_backends: ["tensorboard"]
+
+  max_epochs: 5
+  max_steps: -1
+  val_check_interval: -1
+  # A positive interval larger than this run saves only the final checkpoint.
+  save_interval: 999999
+
+data:
+  train_data_paths: /data0/zhibo/storage/datasets/pick_carrot_plate_rlinf_pi05_absolute_quat_20eps_seed20260830
+  num_workers: 4
+
+algorithm:
+  adv_type: gae
+
+actor:
+  group_name: "ActorGroup"
+  training_backend: "fsdp"
+  micro_batch_size: 4
+  eval_batch_size: 1
+  # Physical GPUs 1 and 2 x four samples; one optimizer step, no accumulation.
+  global_batch_size: 8
+  seed: 20260830
+
+  model:
+    model_path: /data0/zhibo/storage/models/pi05_base_openpi_rlinf_fp32_20260830
+    openpi:
+      assets_dir: /data0/zhibo/storage/experiments/rlinf_pi05_pick_carrot_plate_absquat_20eps_20260830/assets
+      asset_id: pick_carrot_plate_absolute_quat
+    openpi_data:
+      norm_stats_path: /data0/zhibo/storage/experiments/rlinf_pi05_pick_carrot_plate_absquat_20eps_20260830/assets/pick_carrot_plate_absolute_quat/norm_stats.json
+
+  optim:
+    lr: 1.0e-5
+    adam_beta1: 0.9
+    adam_beta2: 0.95
+    adam_eps: 1.0e-08
+    weight_decay: 1.0e-10
+    clip_grad: 1.0
+    total_training_steps: 6000
+    lr_warmup_steps: 200
+    lr_scheduler: "openpi_cosine"
+    num_cycles: 0.5
+    min_lr: 1.0e-6
+
+  fsdp_config:
+    strategy: "fsdp"
+    sharding_strategy: "full_shard"
+    use_orig_params: True
+    # Disabled for throughput.  Enable only if the two selected GPUs OOM.
+    gradient_checkpointing: False
+    gradient_checkpointing_use_reentrant: False
+    forward_prefetch: True
+    limit_all_gathers: False
+    backward_prefetch: "pre"
+    mixed_precision:
+      param_dtype: bf16
+      reduce_dtype: fp32
+      buffer_dtype: fp32
+
+reward:
+  use_reward_model: False
+
+critic:
+  use_critic_model: False

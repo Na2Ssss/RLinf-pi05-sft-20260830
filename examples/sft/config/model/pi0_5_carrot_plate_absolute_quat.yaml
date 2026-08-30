@@ -1,0 +1,27 @@
+model_type: "openpi_rlinf"
+
+# Keep fp32 optimizer-master weights; FSDP casts to bf16 only for compute.
+precision: fp32
+pi05: True
+is_lora: False
+lora_rank: 32
+
+# Raw robot command: absolute [xyz, quaternion_xyzw, gripper].  The Pi0.5
+# action head remains 32-D internally and the policy transform pads 8 -> 32.
+num_action_chunks: 32
+action_dim: 8
+use_proprio: True
+num_steps: 5
+add_value_head: False
+
+openpi:
+  task: sft
+  config_name: "pi05_carrot_plate_absolute_quat"
+  num_images_in_input: 3
+  action_chunk: ${..num_action_chunks}
+  action_env_dim: ${..action_dim}
+  model_action_dim: 32
+  paligemma_variant: "gemma_2b"
+  action_expert_variant: "gemma_300m"
+  max_token_len: 200
+  discrete_state_input: True

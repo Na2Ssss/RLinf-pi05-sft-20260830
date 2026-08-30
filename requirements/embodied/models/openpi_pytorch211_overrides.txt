@@ -1,0 +1,10 @@
+# Keep the latest RLinf main-branch PyTorch stack while installing
+# rlinf-openpi==0.1.1, whose package metadata still names its older torch build.
+torch==2.11.0
+torchvision==0.26.0
+torchaudio==2.11.0
+torchcodec>=0.11,<0.12
+numpy<2.0
+datasets==3.6.0
+protobuf>=6.33.5,<7
+tokenizers>=0.21,<0.22
